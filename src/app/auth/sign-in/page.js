@@ -9,17 +9,26 @@ import toast, { Toaster } from "react-hot-toast";
 
 export default function SignInPage() {
     const router = useRouter();
+
     const [loading, setLoading] = useState(false);
+    const [socialLoading, setSocialLoading] = useState("");
 
-    async function handleSubmit(e) {
-        e.preventDefault();
+    const handleSubmit = async (event) => {
+        event.preventDefault();
 
-        const form = new FormData(e.currentTarget);
-        const email = form.get("email");
-        const password = form.get("password");
+        if (loading) return;
+
+        const formData = new FormData(event.currentTarget);
+        const email = formData.get("email")?.toString().trim();
+        const password = formData.get("password")?.toString();
+
+        if (!email || !password) {
+            toast.error("ইমেইল ও পাসওয়ার্ড লিখুন।");
+            return;
+        }
 
         setLoading(true);
-        const loadingToast = toast.loading("লগইন করা হচ্ছে...");
+        const toastId = toast.loading("লগইন করা হচ্ছে...");
 
         try {
             const { error } = await authClient.signIn.email({
@@ -28,26 +37,37 @@ export default function SignInPage() {
             });
 
             if (error) {
-                toast.dismiss(loadingToast);
-                toast.error(error.message || "ইমেইল বা পাসওয়ার্ড ভুল");
-                setLoading(false);
+                toast.error(
+                    error.message || "ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।",
+                    { id: toastId }
+                );
                 return;
             }
 
-            toast.dismiss(loadingToast);
-            toast.success("সফলভাবে সাইন ইন হয়েছে!");
+            toast.success("সফলভাবে সাইন ইন হয়েছে!", {
+                id: toastId,
+            });
 
             router.push("/auth/profile");
             router.refresh();
-        } catch (err) {
-            toast.dismiss(loadingToast);
-            toast.error("কোথাও কোনো সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+        } catch {
+            toast.error("সমস্যা হয়েছে। আবার চেষ্টা করুন।", {
+                id: toastId,
+            });
+        } finally {
             setLoading(false);
         }
-    }
+    };
 
-    async function handleSocial(provider) {
-        toast.loading(`${provider} এর মাধ্যমে রিডাইরেক্ট করা হচ্ছে...`, { duration: 2000 });
+    const handleSocial = async (provider) => {
+        if (loading || socialLoading) return;
+
+        setSocialLoading(provider);
+
+        const toastId = toast.loading(
+            `${provider === "google" ? "Google" : "GitHub"} লগইন চালু হচ্ছে...`
+        );
+
         try {
             const { error } = await authClient.signIn.social({
                 provider,
@@ -55,111 +75,160 @@ export default function SignInPage() {
             });
 
             if (error) {
-                toast.error(error.message || "সোশ্যাল লগইনে সমস্যা হয়েছে");
+                toast.error(
+                    error.message || "সোশ্যাল লগইনে সমস্যা হয়েছে।",
+                    { id: toastId }
+                );
+                setSocialLoading("");
+                return;
             }
-        } catch (err) {
-            toast.error("নেটওয়ার্ক সমস্যা, আবার চেষ্টা করুন");
+
+            toast.dismiss(toastId);
+        } catch {
+            toast.error("নেটওয়ার্ক সমস্যা হয়েছে। আবার চেষ্টা করুন।", {
+                id: toastId,
+            });
+            setSocialLoading("");
         }
-    }
+    };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-[#f4f7f5] px-4">
-            {/* Toaster কম্পোনেন্টটি অ্যাড করা হলো */}
+        <main className="flex min-h-screen flex-col items-center justify-center bg-[#f4f7f5] px-4 py-10">
             <Toaster position="top-center" reverseOrder={false} />
 
-            <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {/* Page Heading */}
+            <header className="mb-8 text-center">
+                <h1 className="mb-2 text-2xl font-bold text-gray-900">
                     সাইন ইন
                 </h1>
-                <p className="text-sm text-gray-500">
-                    বিস্তারিত দাম, বাজার তুলনা ও প্রোফাইল দেখতে অ্যাকাউন্টে ঢুকুন।
+
+                <p className="mx-auto max-w-md text-sm leading-6 text-gray-500">
+                    বিস্তারিত দাম, বাজার তুলনা ও প্রোফাইল দেখতে
+                    অ্যাকাউন্টে ঢুকুন।
                 </p>
-            </div>
+            </header>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full max-w-md">
-
+            {/* Sign In Card */}
+            <section className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
                 <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Email */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        <label
+                            htmlFor="email"
+                            className="mb-1.5 block text-sm font-medium text-gray-700"
+                        >
                             ইমেইল
                         </label>
+
                         <input
+                            id="email"
                             type="email"
                             name="email"
                             placeholder="you@example.com"
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-600 focus:border-green-600 outline-none transition"
+                            autoComplete="email"
                             required
+                            disabled={loading || !!socialLoading}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-600 focus:ring-2 focus:ring-green-600/20 disabled:cursor-not-allowed disabled:bg-gray-50"
                         />
                     </div>
 
+                    {/* Password */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        <label
+                            htmlFor="password"
+                            className="mb-1.5 block text-sm font-medium text-gray-700"
+                        >
                             পাসওয়ার্ড
                         </label>
+
                         <input
+                            id="password"
                             type="password"
                             name="password"
                             placeholder="আপনার পাসওয়ার্ড"
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-600 focus:border-green-600 outline-none transition"
+                            autoComplete="current-password"
                             required
+                            disabled={loading || !!socialLoading}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-600 focus:ring-2 focus:ring-green-600/20 disabled:cursor-not-allowed disabled:bg-gray-50"
                         />
                     </div>
 
+                    {/* Submit Button */}
                     <button
                         type="submit"
-                        disabled={loading}
-                        // DaisyUI এর ক্লাস ব্যবহার করতে চাইলে "btn btn-primary" দিতে পারেন, এখানে আপনার কাস্টম ডিজাইন রাখা হয়েছে
-                        className="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition duration-200 bg-[#0F8A46] hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                        disabled={loading || !!socialLoading}
+                        className="flex w-full items-center justify-center rounded-lg bg-[#0F8A46] py-2.5 text-sm font-semibold text-white transition duration-200 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {loading ? (
-                            <span className="flex items-center justify-center gap-2">
-                                <span className="loading loading-spinner loading-sm"></span>
+                            <span className="flex items-center gap-2">
+                                <span className="loading loading-spinner loading-sm" />
                                 অপেক্ষা করুন...
                             </span>
-                        ) : "সাইন ইন"}
+                        ) : (
+                            "সাইন ইন"
+                        )}
                     </button>
                 </form>
 
-                <div className="flex items-center my-6">
-                    <div className="flex-grow border-t border-gray-200"></div>
-                    <span className="px-4 text-xs text-gray-500 font-medium">
+                {/* Divider */}
+                <div className="my-6 flex items-center">
+                    <div className="flex-grow border-t border-gray-200" />
+
+                    <span className="px-4 text-xs font-medium text-gray-500">
                         অথবা
                     </span>
-                    <div className="flex-grow border-t border-gray-200"></div>
+
+                    <div className="flex-grow border-t border-gray-200" />
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                {/* Social Login */}
+                <div className="flex flex-col gap-3 sm:flex-row">
                     <button
                         type="button"
                         onClick={() => handleSocial("google")}
-                        className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                        disabled={loading || !!socialLoading}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <FaGoogle className="text-red-500" />
-                        Google
+                        {socialLoading === "google"
+                            ? "অপেক্ষা করুন..."
+                            : "Google"}
                     </button>
 
                     <button
                         type="button"
                         onClick={() => handleSocial("github")}
-                        className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                        disabled={loading || !!socialLoading}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <FaGithub />
-                        GitHub
+                        {socialLoading === "github"
+                            ? "অপেক্ষা করুন..."
+                            : "GitHub"}
                     </button>
                 </div>
 
+                {/* Sign Up Link */}
                 <p className="mt-8 text-center text-sm text-gray-600">
                     অ্যাকাউন্ট নেই?
-                    <Link href="/auth/sign-up" className="text-[#0F8A46] font-semibold hover:underline ml-1">
+
+                    <Link
+                        href="/auth/sign-up"
+                        className="ml-1 font-semibold text-[#0F8A46] hover:underline"
+                    >
                         সাইন আপ করুন
                     </Link>
                 </p>
-            </div>
+            </section>
 
-            <Link href="/" className="mt-8 text-sm text-gray-500 hover:text-gray-800 transition flex items-center gap-1">
-                ← হোম পেজে ফিরে যান
+            {/* Home Link */}
+            <Link
+                href="/"
+                className="mt-8 flex items-center gap-1 text-sm text-gray-500 transition hover:text-gray-800"
+            >
+                <span aria-hidden="true">←</span>
+                হোম পেজে ফিরে যান
             </Link>
-
-        </div>
+        </main>
     );
 }

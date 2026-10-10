@@ -21,7 +21,7 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (!isPending && !session) {
-            router.push('/');
+            router.push('/auth/sign-in');
         }
     }, [isPending, session, router]);
 
