@@ -6,6 +6,7 @@ Live Preview: https://bazar-dor-ten-omega.vercel.app/
 
 BazarDor is a dynamic and fully responsive web application designed to track the daily market prices of essential commodities in Bangladesh. The platform provides users with quick insights into daily price fluctuations (top risers and fallers), categorized product listings, and an infinite scrolling price ticker. Authenticated users gain access to in-depth, market-specific pricing data and analytics (minimum, maximum, and average prices) for smarter daily shopping.
 
+
 🚀 Technologies Used
 
 1. Frontend Framework: Next.js (App Router)
