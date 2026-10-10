@@ -4,13 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut, updateUser } from '@/lib/auth-client';
 import { FiLogOut } from 'react-icons/fi';
+import toast, { Toaster } from "react-hot-toast";
 
-export default function page() {
+export default function ProfilePage() {
     const router = useRouter();
     const { data: session, isPending } = useSession();
     const [name, setName] = useState('');
     const [isUpdating, setIsUpdating] = useState(false);
-    const [message, setMessage] = useState({ text: '', type: '' });
+    const [isSigningOut, setIsSigningOut] = useState(false);
 
     useEffect(() => {
         if (session?.user?.name) {
@@ -20,14 +21,17 @@ export default function page() {
 
     useEffect(() => {
         if (!isPending && !session) {
-            router.push('/auth/sign-in');
+            router.push('/');
         }
     }, [isPending, session, router]);
 
     if (isPending) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#f4f7f5]">
-                <div className="text-gray-500 font-medium text-sm">লোড হচ্ছে...</div>
+                <div className="flex flex-col items-center gap-3 text-gray-500 font-medium text-sm">
+                    <span className="loading loading-spinner loading-lg text-green-600"></span>
+                    লোড হচ্ছে...
+                </div>
             </div>
         );
     }
@@ -35,41 +39,61 @@ export default function page() {
     if (!session) return null;
 
     const handleSignOut = async () => {
-        await signOut({
-            fetchOptions: {
-                onSuccess: () => {
-                    router.push('/auth/sign-in');
-                    router.refresh();
+        setIsSigningOut(true);
+        const loadingToast = toast.loading("সাইন আউট করা হচ্ছে...");
+
+        try {
+            await signOut({
+                fetchOptions: {
+                    onSuccess: () => {
+                        toast.dismiss(loadingToast);
+                        toast.success("সফলভাবে সাইন আউট হয়েছেন!");
+                        router.push('/auth/sign-in');
+                        router.refresh();
+                    },
+                    onError: (error) => {
+                        toast.dismiss(loadingToast);
+                        toast.error(error.error?.message || "সাইন আউট করতে সমস্যা হয়েছে।");
+                        setIsSigningOut(false);
+                    }
                 },
-            },
-        });
+            });
+        } catch (error) {
+            toast.dismiss(loadingToast);
+            toast.error("সার্ভারে সমস্যা হয়েছে!");
+            setIsSigningOut(false);
+        }
     };
 
     const handleUpdate = async (e) => {
         e.preventDefault();
         setIsUpdating(true);
-        setMessage({ text: '', type: '' });
+        const loadingToast = toast.loading("তথ্য আপডেট করা হচ্ছে...");
 
         try {
             const { error } = await updateUser({ name: name.trim() });
 
             if (error) {
-                setMessage({ text: error.message || 'আপডেট করতে সমস্যা হয়েছে।', type: 'error' });
+                toast.dismiss(loadingToast);
+                toast.error(error.message || 'আপডেট করতে সমস্যা হয়েছে।');
             } else {
-                setMessage({ text: 'নাম সফলভাবে আপডেট হয়েছে!', type: 'success' });
+                toast.dismiss(loadingToast);
+                toast.success('নাম সফলভাবে আপডেট হয়েছে!');
             }
         } catch (err) {
-            setMessage({ text: 'সার্ভারে সমস্যা হয়েছে!', type: 'error' });
+            toast.dismiss(loadingToast);
+            toast.error('সার্ভারে সমস্যা হয়েছে!');
         } finally {
             setIsUpdating(false);
-            setTimeout(() => {
-                setMessage({ text: '', type: '' });
-            }, 3000);
         }
     };
 
     return (
         <div className="min-h-screen bg-[#f4f7f5] py-12 px-4 flex flex-col items-center">
+
+            {/* Toaster কম্পোনেন্ট */}
+            <Toaster position="top-center" reverseOrder={false} />
+
             <div className="w-full max-w-3xl">
 
                 <div className="mb-6">
@@ -102,21 +126,20 @@ export default function page() {
                     </div>
                     <button
                         onClick={handleSignOut}
-                        className="flex items-center gap-2 border border-red-400 text-red-500 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
+                        disabled={isSigningOut}
+                        className="flex items-center gap-2 border border-red-400 text-red-500 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        <FiLogOut className="text-lg rotate-180" />
-                        সাইন আউট
+                        {isSigningOut ? (
+                            <span className="loading loading-spinner loading-sm text-red-500"></span>
+                        ) : (
+                            <FiLogOut className="text-lg rotate-180" />
+                        )}
+                        {isSigningOut ? "হচ্ছে..." : "সাইন আউট"}
                     </button>
                 </div>
 
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 mb-6">তথ্য</h3>
-
-                    {message.text && (
-                        <div className={`mb-4 p-3 text-sm rounded-lg text-center ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {message.text}
-                        </div>
-                    )}
 
                     <form onSubmit={handleUpdate} className="space-y-6">
                         <div>
@@ -135,9 +158,14 @@ export default function page() {
                         <button
                             type="submit"
                             disabled={isUpdating || !name.trim()}
-                            className={`w-full text-white rounded-lg py-3 text-sm font-semibold transition duration-200 ${isUpdating ? "bg-gray-400 cursor-not-allowed" : "bg-[#0F8A46] hover:bg-green-700 disabled:opacity-60"}`}
+                            className="w-full text-white rounded-lg py-3 text-sm font-semibold transition duration-200 bg-[#0F8A46] hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            {isUpdating ? "আপডেট হচ্ছে..." : "আপডেট"}
+                            {isUpdating ? (
+                                <>
+                                    <span className="loading loading-spinner loading-sm"></span>
+                                    আপডেট হচ্ছে...
+                                </>
+                            ) : "আপডেট"}
                         </button>
                     </form>
                 </div>

@@ -5,15 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FaGithub, FaGoogle } from "react-icons/fa";
 import { authClient } from "@/lib/auth-client";
+import toast, { Toaster } from "react-hot-toast";
 
-export default function page() {
+export default function SignUpPage() {
     const router = useRouter();
-    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
     async function handleSubmit(e) {
         e.preventDefault();
-        setError("");
 
         const form = new FormData(e.currentTarget);
         const name = form.get("name");
@@ -22,36 +21,62 @@ export default function page() {
         const confirmPassword = form.get("confirmPassword");
 
         if (password.length < 8) {
-            return setError("পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে");
+            toast.error("পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে");
+            return;
         }
         if (password !== confirmPassword) {
-            return setError("দুটি পাসওয়ার্ড মেলেনি");
+            toast.error("দুটি পাসওয়ার্ড মেলেনি");
+            return;
         }
 
         setLoading(true);
-        const { error } = await authClient.signUp.email({
-            name,
-            email,
-            password,
-        });
-        setLoading(false);
+        const loadingToast = toast.loading("অ্যাকাউন্ট তৈরি করা হচ্ছে...");
 
-        if (error) {
-            return setError(error.message || "কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন");
+        try {
+            const { error } = await authClient.signUp.email({
+                name,
+                email,
+                password,
+            });
+
+            if (error) {
+                toast.dismiss(loadingToast);
+                toast.error(error.message || "কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন");
+                setLoading(false);
+                return;
+            }
+
+            toast.dismiss(loadingToast);
+            toast.success("সফলভাবে অ্যাকাউন্ট তৈরি হয়েছে!");
+            router.push("/auth/profile");
+        } catch (err) {
+            toast.dismiss(loadingToast);
+            toast.error("কোথাও কোনো সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+            setLoading(false);
         }
-        router.push("/auth/profile");
     }
 
     async function handleSocial(provider) {
-        setError("");
-        await authClient.signIn.social({
-            provider,
-            callbackURL: "/auth/profile",
-        });
+        toast.loading(`${provider} এর মাধ্যমে রিডাইরেক্ট করা হচ্ছে...`, { duration: 2000 });
+        try {
+            const { error } = await authClient.signIn.social({
+                provider,
+                callbackURL: "/auth/profile",
+            });
+
+            if (error) {
+                toast.error(error.message || "সোশ্যাল লগইনে সমস্যা হয়েছে");
+            }
+        } catch (err) {
+            toast.error("নেটওয়ার্ক সমস্যা, আবার চেষ্টা করুন");
+        }
     }
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#f4f7f5] px-4">
+
+            {/* Toaster কম্পোনেন্টটি যুক্ত করা হয়েছে */}
+            <Toaster position="top-center" reverseOrder={false} />
 
             <div className="text-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -117,18 +142,17 @@ export default function page() {
                         />
                     </div>
 
-                    {error && (
-                        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                            {error}
-                        </p>
-                    )}
-
                     <button
                         type="submit"
                         disabled={loading}
                         className="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition duration-200 bg-[#0F8A46] hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        {loading ? "অপেক্ষা করুন..." : "অ্যাকাউন্ট তৈরি করুন"}
+                        {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <span className="loading loading-spinner loading-sm"></span>
+                                অপেক্ষা করুন...
+                            </span>
+                        ) : "অ্যাকাউন্ট তৈরি করুন"}
                     </button>
                 </form>
 
@@ -147,7 +171,7 @@ export default function page() {
                         className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
                     >
                         <FaGoogle className="text-red-500" />
-                        Google দিয়ে চালিয়ে যান
+                        Google
                     </button>
 
                     <button
@@ -156,7 +180,7 @@ export default function page() {
                         className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
                     >
                         <FaGithub />
-                        GitHub দিয়ে চালিয়ে যান
+                        GitHub
                     </button>
                 </div>
 
