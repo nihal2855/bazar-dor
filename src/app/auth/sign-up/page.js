@@ -258,7 +258,7 @@ export default function SignUpPage() {
 
                         {socialLoading === "google"
                             ? "অপেক্ষা করুন..."
-                            : "Google"}
+                            : "Google দিয়ে চালিয়ে যান"}
                     </button>
 
                     <button
@@ -271,7 +271,7 @@ export default function SignUpPage() {
 
                         {socialLoading === "github"
                             ? "অপেক্ষা করুন..."
-                            : "GitHub"}
+                            : "GitHub দিয়ে চালিয়ে যান"}
                     </button>
                 </div>
 

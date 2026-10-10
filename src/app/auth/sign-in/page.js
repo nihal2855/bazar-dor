@@ -192,7 +192,7 @@ export default function SignInPage() {
                         <FaGoogle className="text-red-500" />
                         {socialLoading === "google"
                             ? "অপেক্ষা করুন..."
-                            : "Google"}
+                            : "Google দিয়ে চালিয়ে যান"}
                     </button>
 
                     <button
@@ -204,7 +204,7 @@ export default function SignInPage() {
                         <FaGithub />
                         {socialLoading === "github"
                             ? "অপেক্ষা করুন..."
-                            : "GitHub"}
+                            : "GitHub দিয়ে চালিয়ে যান"}
                     </button>
                 </div>
 
